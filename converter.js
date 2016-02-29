@@ -6,8 +6,9 @@ let assert = require('assert');
 let compress = require('./compress');
 let reader = require('./reader');
 let writer = require('./writer');
+let util = require('./util');
 
-function XnbToJson(inputBuffer) {
+function XnbToObject(inputBuffer) {
     let buffer = new reader.BufferConsumer(inputBuffer);
 
     //XNB File format
@@ -48,7 +49,7 @@ function XnbToJson(inputBuffer) {
     let readerData = [];
     let numReaders = content.consume7BitEncodedNumber();
     for(let i = 0; i < numReaders; i++) {
-        let readerType = stringReader.consume(content);
+        let readerType = stringReader.consume(content).data;
         let version = content.consume(4).readInt32LE();
 
         readerData.push({
@@ -56,13 +57,13 @@ function XnbToJson(inputBuffer) {
             version: version
         });
 
-        readers.push(reader.getReader(readerType));
+        readers.push(reader.getReader(util.simplifyType(readerType)));
     }
 
     let numSharedResources = content.consume7BitEncodedNumber();
     assert.equal(numSharedResources, 0);
 
-    //NOTE: It may happen that a value is a ValueType, in which case this would cause a mess.
+    //NOTE: It may happen that the main entry is a ValueType, in which case this would cause a mess.
     let readerResolver = new reader.ReaderResolver(readers);
     let result = readerResolver.consume(content);
 
@@ -76,17 +77,13 @@ function XnbToJson(inputBuffer) {
         numSharedResources: numSharedResources
     };
 
-    let json = JSON.stringify({
+    return {
         xnbData: xnbData,
         content: result
-    }, null, 4);
-
-    return json;
+    };
 }
 
-function JsonToXnb(inputJson) {
-    let data = JSON.parse(inputJson);
-
+function ObjectToXnb(data) {
     let buffer = new writer.BufferWriter();
 
     buffer.writeAscii('XNB');
@@ -115,7 +112,7 @@ function JsonToXnb(inputJson) {
     decompressedBuffer.write7BitEncodedNumber(data.xnbData.numSharedResources);
 
     let writerResolver = new writer.WriterResolver(data.xnbData.readerData);
-    writerResolver.write(decompressedBuffer, 'Dictionary', data.content);
+    writerResolver.write(decompressedBuffer, data.content);
 
     if(data.xnbData.compressed) {
         let compressedBuffer = new writer.BufferWriter(compress.compress(decompressedBuffer.buffer));
@@ -124,7 +121,7 @@ function JsonToXnb(inputJson) {
         buffer.concat(compressedBuffer.buffer);
 
     } else {
-        buffer.writeInt32LE(buffer.length + compressedBuffer.length + 4);
+        buffer.writeInt32LE(buffer.length + decompressedBuffer.length + 4);
         buffer.concat(decompressedBuffer.buffer);
     }
 
@@ -132,11 +129,11 @@ function JsonToXnb(inputJson) {
 }
 
 module.exports = {
-    JsonToXnb: JsonToXnb,
-    XnbToJson: XnbToJson
+    XnbToObject,
+    ObjectToXnb
 };
 
-// let originalBuffer = fs.readFileSync('Crops.xnb');
+// let originalBuffer = fs.readFileSync('SmallFont.xnb');
 // let result = XnbToJson(originalBuffer);
 // fs.writeFileSync('result.json', result);
 // let finalBuffer = JsonToXnb(result);

@@ -28,9 +28,84 @@ function parseSubtypes(type) {
     assert.equal(subtypeNum, subtypes.length);
     return subtypes;
 }
-exports.parseSubtypes = parseSubtypes;
 
 function parseMainType(type) {
     return type.split(/`|,/)[0];
 }
-exports.parseMainType = parseMainType;
+
+function simplifyType(type) {
+     let mainType = parseMainType(type);
+
+    let isArray = mainType.endsWith('[]');
+    if(isArray) {
+        let arrayType = simplifyType(mainType.slice(0, -2));
+        return `Array<${arrayType}>`;
+    }
+
+    switch(mainType) {
+        case 'Microsoft.Xna.Framework.Content.DictionaryReader':
+            let subtypes = parseSubtypes(type).map(simplifyType);
+            return `Dictionary<${subtypes[0]},${subtypes[1]}>`;
+
+        case 'Microsoft.Xna.Framework.Content.ArrayReader':
+            let arrayType = parseSubtypes(type).map(simplifyType)[0];
+            return `Array<${arrayType}>`;
+
+        case 'Microsoft.Xna.Framework.Content.ListReader':
+            let listType = parseSubtypes(type).map(simplifyType)[0];
+            return `List<${listType}>`;
+
+        case 'Microsoft.Xna.Framework.Content.Texture2DReader':
+            return 'Texture2D';
+
+        case 'Microsoft.Xna.Framework.Content.Vector3Reader':
+        case 'Microsoft.Xna.Framework.Vector3':
+            return 'Vector3';
+
+        case 'Microsoft.Xna.Framework.Content.StringReader':
+        case 'System.String':
+            return 'String';
+
+        case 'Microsoft.Xna.Framework.Content.Int32Reader':
+        case 'System.Int32':
+            return 'Int32';
+
+        case 'Microsoft.Xna.Framework.Content.CharReader':
+        case 'System.Char':
+            return 'Char';
+
+        case 'Microsoft.Xna.Framework.Content.BooleanReader':
+        case 'System.Boolean':
+            return 'Boolean';
+
+        case 'Microsoft.Xna.Framework.Content.SpriteFontReader':
+            return 'SpriteFont';
+
+        case 'Microsoft.Xna.Framework.Content.RectangleReader':
+        case 'Microsoft.Xna.Framework.Rectangle':
+            return 'Rectangle';
+
+        default:
+            throw new ReadError('Non-implemented type simplifying for "' + type + '"');
+    }
+}
+
+exports.simplifyType = simplifyType;
+
+function getTypeInfo(type) {
+    let mainType = type.match(/[^<]+/)[0];
+    let subTypes = type.match(/<(.+)>/);
+
+    if(subTypes) {
+        subTypes = subTypes[1].split(',').map(type => type.trim());
+    } else {
+        subTypes = [];
+    }
+
+    return {
+        type: mainType,
+        subtypes: subTypes
+    };
+}
+
+exports.getTypeInfo = getTypeInfo;

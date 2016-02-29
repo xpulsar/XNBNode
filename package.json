@@ -1,13 +1,23 @@
 {
-  "name": "xnb-node",
-  "version": "0.0.1",
+  "name": "app",
+  "version": "0.1.0",
   "description": "",
-  "main": "index.js",
-  "dependencies": {},
+  "main": "main.js",
+  "dependencies": {
+    "commander": "^2.9.0",
+    "ffi": "^2.0.0",
+    "dxt": "^1.0.0",
+    "mkdirp": "^0.5.1",
+    "pngjs": "^2.2.0",
+    "ref": "^1.3.2",
+    "ref-struct": "^1.0.2",
+    "walk": "^2.3.9"
+  },
   "devDependencies": {},
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "author": "",
+  "keywords": [],
+  "author": "draivin",
   "license": "MIT"
 }

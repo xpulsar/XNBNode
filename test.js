@@ -7,6 +7,7 @@ let path = require('path');
 let assert = require('assert');
 let converter = require('./converter');
 let util = require('./util');
+let typeyaml = require('./typeyaml');
 
 let inputDir = '.\\content';
 // let outputDir = '.\\out';
@@ -15,19 +16,13 @@ let walker = walk.walk(inputDir);
 walker.on('file', function(root, fileStats, next) {
     let ext = path.extname(fileStats.name);
     if(ext.toLowerCase() == '.xnb') {
-        // let targetDir = root.replace(inputDir, outputDir);
-
         let sourceFile = path.join(root, fileStats.name);
-        // let targetFile = path.join(targetDir, path.basename(fileStats.name, ext) + '.json');
+        let original = fs.readFileSync(sourceFile);
+        let extracted;
 
-        // mkdirp.sync(targetDir);
         console.log(sourceFile);
-
-        let originalBuffer = fs.readFileSync(sourceFile);
-        let result;
-
         try {
-            result = converter.XnbToJson(originalBuffer);
+            extracted = converter.XnbToObject(original);
         } catch(e) {
             if(e instanceof util.ReadError) {
                 console.log(e.message);
@@ -37,11 +32,14 @@ walker.on('file', function(root, fileStats, next) {
             }
         }
 
-        let finalBuffer = converter.JsonToXnb(result);
-        if(!originalBuffer.equals(finalBuffer)) {
-            console.log('First Fail');
-            let secondResult = converter.XnbToJson(finalBuffer);
-            assert.equal(result, secondResult);
+        let yaml = typeyaml.stringify(extracted, 4);
+        let parsed = typeyaml.parse(yaml);
+
+        let repacked = converter.ObjectToXnb(parsed);
+        if(!original.equals(repacked)) {
+            console.log('First Pass Fail');
+            let reExtracted = converter.XnbToObject(repacked);
+            assert.deepEqual(extracted, reExtracted);
         }
 
     } else {

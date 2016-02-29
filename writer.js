@@ -2,6 +2,8 @@
 
 let ref = require('ref');
 let util = require('./util');
+let reader = require('./reader');
+let assert = require('assert');
 
 class BufferWriter {
     constructor(buffer) {
@@ -36,6 +38,18 @@ class BufferWriter {
         this.concat(buffer);
     }
 
+    writeUInt32LE(number) {
+        let buffer = new Buffer(4);
+        buffer.writeUInt32LE(number, 0);
+        this.concat(buffer);
+    }
+
+    writeFloatLE(number) {
+        let buffer = new Buffer(4);
+        buffer.writeFloatLE(number, 0);
+        this.concat(buffer);
+    }
+
     write7BitEncodedNumber(number) {
         do {
             let byte = number & 127;
@@ -59,8 +73,11 @@ class DictionaryWriter {
         buffer.writeInt32LE(count);
         for(let key of Object.keys(dict)) {
             let value = dict[key];
-            writerResolver.write(buffer, this.keyType, key);
-            writerResolver.write(buffer, this.valueType, value);
+
+            // Can't keep track of the key types in javascript without using
+            // another storage method.
+            writerResolver.write(buffer, {type: this.keyType, data: key});
+            writerResolver.write(buffer, value);
         }
     }
 }
@@ -73,8 +90,60 @@ class ArrayWriter {
     write(buffer, array, writerResolver) {
         buffer.writeInt32LE(array.length);
         for(let i = 0; i < array.length; i++) {
-            writerResolver.write(buffer, this.elementType, array[i]);
+            writerResolver.write(buffer, array[i]);
         }
+    }
+}
+
+class Texture2DWriter {
+    write(buffer, imageData, writerResolver) {
+        buffer.writeInt32LE(0);
+        buffer.writeUInt32LE(imageData.width);
+        buffer.writeUInt32LE(imageData.height);
+        buffer.writeUInt32LE(1);
+
+        buffer.writeUInt32LE(imageData.data.length);
+        buffer.concat(imageData.data);
+    }
+}
+
+class SpriteFontWriter {
+    write(buffer, fontData, writerResolver) {
+        writerResolver.write(buffer, fontData.texture);
+        writerResolver.write(buffer, fontData.glyphs);
+        writerResolver.write(buffer, fontData.cropping);
+        writerResolver.write(buffer, fontData.characterMap);
+        buffer.writeInt32LE(fontData.verticalSpacing);
+        buffer.writeFloatLE(fontData.horizontalSpacing);
+        writerResolver.write(buffer, fontData.kerning);
+
+        let defaultCharacter = fontData.defaultCharacter.data;
+        let booleanWriter = new BooleanWriter();
+        if(defaultCharacter.data != null) {
+            booleanWriter.write(buffer, true, writerResolver);
+
+            let charWriter = new CharWriter();
+            charWriter.write(buffer, defaultCharacter.data.data, writerResolver);
+        } else {
+            booleanWriter.write(buffer, false, writerResolver);
+        }
+    }
+}
+
+class Vector3Writer {
+    write(buffer, vector, writerResolver) {
+        buffer.writeFloatLE(vector.x);
+        buffer.writeFloatLE(vector.y);
+        buffer.writeFloatLE(vector.z);
+    }
+}
+
+class CharWriter {
+    write(buffer, char, writerResolver) {
+        assert.equal(char.length, 1);
+        let charBuffer = new Buffer(4);
+        let size = charBuffer.write(char);
+        buffer.concat(charBuffer.slice(0, size));
     }
 }
 
@@ -88,6 +157,15 @@ class StringWriter {
 }
 
 exports.StringWriter = StringWriter;
+
+class RectangleWriter {
+    write(buffer, rectangle, writerResolver) {
+        buffer.writeInt32LE(rectangle.x);
+        buffer.writeInt32LE(rectangle.y);
+        buffer.writeInt32LE(rectangle.width);
+        buffer.writeInt32LE(rectangle.height);
+    }
+}
 
 class Int32Writer {
     write(buffer, number, writerResolver) {
@@ -105,85 +183,63 @@ class WriterResolver {
     constructor(readers) {
         this.readerData = {};
         for(let i = 0; i < readers.length; i++) {
-            let reader = readers[i].type;
+            let readerType = readers[i].type;
 
-            let typeInfo = getTypeData(reader);
-            typeInfo.index = i;
-
-            this.readerData[typeInfo.type] = typeInfo;
+            let simpleType = util.simplifyType(readerType);
+            this.readerData[simpleType] = {
+                writer: getWriter(simpleType),
+                valueType: reader.getReader(simpleType).isValueType(),
+                index: i
+            };
         }
     }
 
-    write(buffer, type, value) {
-        let readerData = this.readerData[type];
+    write(buffer, value) {
+        let readerData = this.readerData[value.type];
         if(!readerData.valueType) {
             buffer.write7BitEncodedNumber(readerData.index + 1);
         }
-        readerData.writer.write(buffer, value, this);
+        readerData.writer.write(buffer, value.data, this);
     }
 }
 
 exports.WriterResolver = WriterResolver;
 
-// Oversimplification assuming at most one specialization of each type.
+function getWriter(type) {
+    let typeInfo = util.getTypeInfo(type);
+    switch(typeInfo.type) {
+        case 'Dictionary':
+            return new DictionaryWriter(typeInfo.subtypes[0], typeInfo.subtypes[1]);
 
-function getTypeData(type) {
-    let mainType = util.parseMainType(type);
+        case 'Array':
+        case 'List':
+            return new ArrayWriter(typeInfo.subtypes[0]);
 
-    let isArray = mainType.endsWith('[]');
-    if(isArray) {
-        let arrayType = getTypeData(mainType.slice(0, -2));
-        return {
-            type: 'Array',
-            writer: new ArrayWriter(arrayType.type),
-            valueType: false
-        };
-    }
+        case 'Texture2D':
+            return new Texture2DWriter();
 
-    switch(mainType) {
-        case 'Microsoft.Xna.Framework.Content.DictionaryReader':
-            let subtypes = util.parseSubtypes(type).map(getTypeData)
-                .map(typeData => typeData.type);
+        case 'Vector3':
+            return new Vector3Writer();
 
-            return {
-                type: 'Dictionary',
-                writer: new DictionaryWriter(subtypes[0], subtypes[1]),
-                valueType: false
-            };
+        case 'String':
+            return new StringWriter();
 
-        case 'Microsoft.Xna.Framework.Content.ArrayReader':
-            let arrayType = util.parseSubtypes(type).map(getTypeData)[0];
-            return {
-                type: 'Array',
-                writer: new ArrayWriter(arrayType.type),
-                valueType: false
-            };
+        case 'Int32':
+            return new Int32Writer();
 
-        case 'Microsoft.Xna.Framework.Content.StringReader':
-        case 'System.String':
-            return {
-                type: 'String',
-                writer: new StringWriter(),
-                valueType: false
-            };
+        case 'Char':
+            return new CharWriter();
 
-        case 'Microsoft.Xna.Framework.Content.Int32Reader':
-        case 'System.Int32':
-            return {
-                type: 'Int32',
-                writer: new Int32Writer(),
-                valueType: true
-            };
+        case 'Boolean':
+            return new BooleanWriter();
 
-        case 'Microsoft.Xna.Framework.Content.BooleanReader':
-        case 'System.Boolean':
-            return {
-                type: 'Boolean',
-                writer: new BooleanWriter(),
-                valueType: true
-            };
+        case 'SpriteFont':
+            return new SpriteFontWriter();
+
+        case 'Rectangle':
+            return new RectangleWriter();
 
         default:
-            throw new util.ReadError('Non-implemented file reader for "' + type + '"');
+            throw new util.ReadError('Non-implemented file writer for "' + type + '"');
     }
 }
