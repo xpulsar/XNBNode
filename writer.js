@@ -102,8 +102,21 @@ class Texture2DWriter {
         buffer.writeUInt32LE(imageData.height);
         buffer.writeUInt32LE(1);
 
-        buffer.writeUInt32LE(imageData.data.length);
-        buffer.concat(imageData.data);
+        if(!imageData.format) imageData.format = 0;
+        if(!imageData.shouldCompress) imageData.format = 0;
+
+        let data = imageData.data;
+        let dxt = require('dxt');
+        if(imageData.format == 3) {
+            data = dxt.compress(data, width, height, dxt.kDxt1);
+        } else if(imageData.format == 4) {
+            data = dxt.compress(data, width, height, dxt.kDxt3);
+        } else if(imageData.format == 5) {
+            data = dxt.compress(data, width, height, dxt.kDxt5);
+        }
+
+        buffer.writeUInt32LE(data.length);
+        buffer.concat(data);
     }
 }
 

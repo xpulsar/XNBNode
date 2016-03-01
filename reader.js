@@ -127,22 +127,23 @@ class Texture2DReader extends Reader {
         let size = buffer.consume(4).readUInt32LE();
         let data = buffer.consume(size);
 
+        let dxt = require('dxt');
         if(format == 4) {
-            let dxt = require('dxt');
             data = dxt.decompress(data, width, height, dxt.kDxt1);
         } else if(format == 5) {
-            let dxt = require('dxt');
             data = dxt.decompress(data, width, height, dxt.kDxt3);
         } else if(format == 6) {
-            let dxt = require('dxt');
             data = dxt.decompress(data, width, height, dxt.kDxt5);
         } else if(format != 0) {
             throw new util.ReadError('Non-implemented Texture2D type: ' + format);
         }
         assert.equal(count, 1);
 
+        // Uncomment this for testing, as compression changes the buffer each time.
+        // format = 0;
 
         return {
+            format,
             width,
             height,
             data
