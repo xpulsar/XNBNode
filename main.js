@@ -12,7 +12,7 @@ let typeyaml = require('./typeyaml');
 
 program
     .option('-q, --quiet', 'don\'t output files being processed')
-    .version('0.1.0');
+    .version('0.1.1');
 
 program
     .command('extract <input> <output>')

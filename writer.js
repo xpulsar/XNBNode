@@ -106,6 +106,15 @@ class Texture2DWriter {
         if(!imageData.shouldCompress) imageData.format = 0;
 
         let data = imageData.data;
+
+        for(let i = 0; i < data.length; i += 4) {
+            if(data[i + 3] == 0) {
+                data[i] = 0;
+                data[i + 1] = 0;
+                data[i + 2] = 0;
+            }
+        }
+
         let dxt = require('dxt');
         if(imageData.format == 3) {
             data = dxt.compress(data, width, height, dxt.kDxt1);
