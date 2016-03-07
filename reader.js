@@ -195,6 +195,27 @@ class SpriteFontReader extends Reader {
     }
 }
 
+class TBinReader extends Reader {
+    _consume(buffer, readerResolver) {
+
+        let size = buffer.consume(4).readInt32LE();
+
+        let data = buffer.consume(size);
+
+        return {
+            data: data
+        };
+    }
+
+    isValueType() {
+        return false;
+    }
+
+    get type() {
+        return 'TBin';
+    }
+}
+
 class Vector3Reader extends Reader {
     _consume(buffer, readerResolver) {
         return {
@@ -352,6 +373,9 @@ function getReader(type) {
 
         case 'Rectangle':
             return new RectangleReader();
+
+        case 'TBin':
+            return new TBinReader();
 
         default:
             throw new util.ReadError('Non-implemented file reader for "' + type + '"');
