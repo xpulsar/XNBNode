@@ -52,7 +52,7 @@ function onPresave(outputFile, data) {
 exports.onPresave = onPresave;
 
 function onPostload(inputFile, data) {
-    if (typeyaml.isTypeObject(data.content) && data.content.type == 'TBin') {
+    if (util.isTypeObject(data.content) && data.content.type == 'TBin') {
         let map = fs.readFileSync(path.join(path.dirname(inputFile), data.content.data.tBinName));
         data.content.data.data = map;
         let mapProcessed = processMap(data.content, false);
