@@ -25,12 +25,72 @@ function objectWalk(object, path, cb) {
 }
 
 function onPresave(outputFile, data) {
-    let map = extractMap(data.content);
-    if (map != null) {
-        let reader = require("./reader");
-        let writer = require("./writer");
+    let map = processMap(data.content, true);
 
-        let buffer = new reader.BufferConsumer(map);
+    if (map != null) {
+        let ext = path.extname(outputFile);
+        let fileName = path.basename(outputFile, ext) + '.tbin';
+        let filePath = path.join(path.dirname(outputFile), fileName);
+        fs.writeFileSync(filePath, map);
+        
+        data.content.data.tBinName = fileName;
+    }
+
+    let images = [];
+
+    objectWalk(data.content, (object, path) => {
+        if(object.type == 'Texture2D') images.push(extractImage(object, path, outputFile));
+    });
+
+    if(images.length) {
+        data.extractedImages = images;
+    }
+
+    return data;
+}
+
+exports.onPresave = onPresave;
+
+function onPostload(inputFile, data) {
+    if (typeyaml.isTypeObject(data.content) && data.content.type == 'TBin') {
+        let map = fs.readFileSync(path.join(path.dirname(inputFile), data.content.data.tBinName));
+        data.content.data.data = map;
+        let mapProcessed = processMap(data.content, false);
+        data.content.data.data = mapProcessed;
+    }
+
+    let images = data.extractedImages || [];
+
+    for(let i = 0; i < images.length; i++) {
+        loadImage(images[i], inputFile, data);
+    }
+
+    return data;
+}
+
+exports.onPostload = onPostload;
+
+function traversePath(object, path) {
+    if(util.isTypeObject(object)) return traversePath(object['data'], path);
+    if(!path) return object;
+    let parts = path.split('.');
+    return traversePath(object[parts[0]], parts.slice(1).join('.'));
+}
+
+function getImageName(baseFile, contentPath) {
+    let ext = path.extname(baseFile);
+    return path.join(path.dirname(baseFile), path.basename(baseFile, ext) + '.' + contentPath + '.png');
+}
+
+function processMap(object, addPng) {
+    let data = object.data.data;
+
+    if (data != null && data.toString('utf8', 0, 6) === 'tBIN10') {
+        delete object.data.data;
+        let reader = require('./reader');
+        let writer = require('./writer');
+
+        let buffer = new reader.BufferConsumer(data);
         let header = buffer.consume(6);
         let out = new writer.BufferWriter();
         out.concat(header);
@@ -85,8 +145,15 @@ function onPresave(outputFile, data) {
 
             let strBytes = buffer.consume(4).readInt32LE();
             let imgSource = buffer.consume(strBytes);
-            imgSource = imgSource + ".png";
-            tileSheets.push(imgSource);
+
+            if (addPng) {
+                imgSource = imgSource + '.png';
+                tileSheets.push(imgSource);
+            } else {
+                tileSheets.push(imgSource);
+                imgSource = path.basename(imgSource, '.png');
+            }
+            
             out.writeInt32LE(imgSource.length);
             out.writeAscii(imgSource);
 
@@ -97,57 +164,9 @@ function onPresave(outputFile, data) {
 
         out.concat(buffer.buffer); // done with tilesets, everything else doesn't matter
 
-        let ext = path.extname(outputFile);
-        let filePath = path.join(path.dirname(outputFile), path.basename(outputFile, ext) + '.tbin');
-        fs.writeFileSync(filePath, out.buffer);
+        object.data.tileSheets = tileSheets;
 
-        data.content.data.tileSheets = tileSheets;
-    }
-
-    let images = [];
-
-    objectWalk(data.content, (object, path) => {
-        if(object.type == 'Texture2D') images.push(extractImage(object, path, outputFile));
-    });
-
-    if(images.length) {
-        data.extractedImages = images;
-    }
-
-    return data;
-}
-
-exports.onPresave = onPresave;
-
-function onPostload(inputFile, data) {
-    let images = data.extractedImages || [];
-
-    for(let i = 0; i < images.length; i++) {
-        loadImage(images[i], inputFile, data);
-    }
-
-    return data;
-}
-
-exports.onPostload = onPostload;
-
-function traversePath(object, path) {
-    if(util.isTypeObject(object)) return traversePath(object['data'], path);
-    if(!path) return object;
-    let parts = path.split('.');
-    return traversePath(object[parts[0]], parts.slice(1).join('.'));
-}
-
-function getImageName(baseFile, contentPath) {
-    let ext = path.extname(baseFile);
-    return path.join(path.dirname(baseFile), path.basename(baseFile, ext) + '.' + contentPath + '.png');
-}
-
-function extractMap(object) {
-    let data = object.data.data;
-    if (data.toString('utf8', 0, 6) === "tBIN10") {
-        delete object.data.data;
-        return data;
+        return out.buffer;
     }
     return null;
 }
