@@ -108,11 +108,10 @@ class Texture2DWriter {
         let data = imageData.data;
 
         for(let i = 0; i < data.length; i += 4) {
-            if(data[i + 3] == 0) {
-                data[i] = 0;
-                data[i + 1] = 0;
-                data[i + 2] = 0;
-            }
+            let alpha = data[i + 3] / 255;
+            data[i] = Math.floor(data[i] * alpha);
+            data[i + 1] = Math.floor(data[i + 1] * alpha);
+            data[i + 2] = Math.floor(data[i + 2] * alpha);
         }
 
         let dxt = require('dxt');

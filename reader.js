@@ -123,6 +123,7 @@ class Texture2DReader extends Reader {
         let width = buffer.consume(4).readUInt32LE();
         let height = buffer.consume(4).readUInt32LE();
         let count = buffer.consume(4).readUInt32LE();
+        assert.equal(count, 1);
 
         let size = buffer.consume(4).readUInt32LE();
         let data = buffer.consume(size);
@@ -137,7 +138,13 @@ class Texture2DReader extends Reader {
         } else if(format != 0) {
             throw new util.ReadError('Non-implemented Texture2D type: ' + format);
         }
-        assert.equal(count, 1);
+
+        for(let i = 0; i < data.length; i += 4) {
+            let inverseAlpha = 255 / data[i + 3];
+            data[i] = Math.floor(data[i] * inverseAlpha);
+            data[i + 1] = Math.floor(data[i + 1] * inverseAlpha);
+            data[i + 2] = Math.floor(data[i + 2] * inverseAlpha);
+        }
 
         // Uncomment this for testing, as compression changes the buffer each time.
         // format = 0;
