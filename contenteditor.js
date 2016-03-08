@@ -19,7 +19,7 @@ function objectWalk(object, path, cb) {
     } else {
         if(path) path += '.';
         for(let key in object) {
-            objectWalk(object[key], path + key);
+            objectWalk(object[key], path + key, cb);
         }
     }
 }
