@@ -85,6 +85,9 @@ function simplifyType(type) {
         case 'Microsoft.Xna.Framework.Rectangle':
             return 'Rectangle';
 
+        case 'xTile.Pipeline.TideReader':
+            return 'TBin';
+
         default:
             throw new ReadError('Non-implemented type simplifying for "' + type + '"');
     }

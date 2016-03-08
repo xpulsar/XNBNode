@@ -152,6 +152,13 @@ class SpriteFontWriter {
     }
 }
 
+class TBinWriter {
+    write(buffer, tBinData, writerResolver) {
+        buffer.writeInt32LE(tBinData.data.length);
+        buffer.concat(tBinData.data);
+    }
+}
+
 class Vector3Writer {
     write(buffer, vector, writerResolver) {
         buffer.writeFloatLE(vector.x);
@@ -260,6 +267,9 @@ function getWriter(type) {
 
         case 'Rectangle':
             return new RectangleWriter();
+
+        case 'TBin':
+            return new TBinWriter();
 
         default:
             throw new util.ReadError('Non-implemented file writer for "' + type + '"');
