@@ -39,7 +39,30 @@ walker.on('file', function(root, fileStats, next) {
         if(!original.equals(repacked)) {
             console.log('First Pass Fail');
             let reExtracted = converter.XnbToObject(repacked);
-            assert.deepEqual(extracted, reExtracted);
+
+            // if(extracted.content.data.data) {
+            //     fs.writeFileSync('test.bin', extracted.content.data.data);
+            //     fs.writeFileSync('test2.bin', reExtracted.content.data.data);
+            //     delete extracted.content.data.data;
+            //     delete reExtracted.content.data.data;
+            // }
+            // fs.writeFileSync('extracted.json', JSON.stringify(extracted));
+            // fs.writeFileSync('extracted2.json', JSON.stringify(reExtracted));
+
+            if(extracted.content.type == 'Texture2D') {
+                assert.deepEqual(extracted.xnbData, reExtracted.xnbData);
+
+                let left = extracted.content.data.data;
+                let right = reExtracted.content.data.data;
+
+                for(let i = 0; i < left.length; i++) {
+                    let l = left[i];
+                    let r = right[i];
+                    assert.equal(Math.abs(l - r) <= 1, true);
+                }
+            } else {
+                assert.deepEqual(extracted, reExtracted);
+            }
         }
 
     } else {
