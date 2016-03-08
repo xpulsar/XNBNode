@@ -109,3 +109,9 @@ function getTypeInfo(type) {
 }
 
 exports.getTypeInfo = getTypeInfo;
+
+function isTypeObject(object) {
+    return object && object.hasOwnProperty('type') && object.hasOwnProperty('data');
+}
+
+exports.isTypeObject = isTypeObject;

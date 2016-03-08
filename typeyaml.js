@@ -1,15 +1,12 @@
 'use strict';
 
 let assert = require('assert');
-
-function isTypeObject(object) {
-    return object && object.hasOwnProperty('type') && object.hasOwnProperty('data');
-}
+let util = require('./util');
 
 function stringify (o, gap, indentation) {
     if(o && Buffer.isBuffer(o)) return JSON.stringify(':base64:' + o.toString('base64'));
 
-    if(isTypeObject(o)) {
+    if(util.isTypeObject(o)) {
         let s = stringify(o.data, gap, indentation);
         if(s.includes('\n')) {
             return ' #!' + o.type + s;
@@ -227,6 +224,5 @@ function parse(str) {
 
 module.exports = {
     stringify: preStringify,
-    parse: parse,
-    isTypeObject, isTypeObject
+    parse: parse
 };
