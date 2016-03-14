@@ -21,8 +21,12 @@ class BufferWriter {
     }
 
     writeAscii(text) {
-        let buffer = new Buffer(text.length);
-        buffer.write(text, 0, text.length, 'ascii');
+        let buffer = new Buffer(text, 'ascii');
+        this.concat(buffer);
+    }
+
+    writeUtf8(text) {
+        let buffer = new Buffer(text, 'utf8');
         this.concat(buffer);
     }
 
