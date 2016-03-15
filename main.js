@@ -12,7 +12,7 @@ let contenteditor = require('./contenteditor');
 
 program
     .option('-q, --quiet', 'don\'t output files being processed')
-    .version('0.2.1');
+    .version('0.2.2');
 
 program
     .command('extract <input> <output>')
