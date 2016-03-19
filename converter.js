@@ -8,6 +8,54 @@ let reader = require('./reader');
 let writer = require('./writer');
 let util = require('./util');
 
+function getXnbType(inputBuffer) {
+    let buffer = new reader.BufferConsumer(inputBuffer);
+
+    //XNB File format
+    assert.equal(buffer.consume(3).toString('ascii'), 'XNB');
+
+    //XNB Target
+    let target = buffer.consume(1).toString('ascii');
+
+    //XNA Version 4
+    assert.equal(buffer.consume(1).readInt8(0), 5);
+
+    let flags = buffer.consume(1).readInt8(0);
+    let isCompressed = flags & 0x80;
+    let isHiDef = flags & 0x01;
+
+    let compressedSize = buffer.consume(4).readUInt32LE(0);
+    let decompressedSize = 0;
+
+    if(isCompressed) {
+        decompressedSize = buffer.consume(4).readUInt32LE(0);
+    }
+
+    let decompressedBuffer = new Buffer(decompressedSize);
+    decompressedBuffer.type = ref.types.byte;
+
+    if(isCompressed) {
+        compress.decompress(buffer.buffer, decompressedBuffer);
+    } else {
+        decompressedBuffer = buffer.buffer;
+    }
+
+    let content = new reader.BufferConsumer(decompressedBuffer);
+
+    let stringReader = new reader.StringReader();
+
+    let readers = [];
+    let readerData = [];
+    let numReaders = content.consume7BitEncodedNumber();
+
+    if(numReaders > 0) {
+        let readerType = stringReader.consume(content).data;
+        return util.simplifyType(readerType);
+    }
+
+    return null;
+}
+
 function XnbToObject(inputBuffer) {
     let buffer = new reader.BufferConsumer(inputBuffer);
 
@@ -115,20 +163,21 @@ function ObjectToXnb(data) {
     writerResolver.write(decompressedBuffer, data.content);
 
     if(data.xnbData.compressed) {
-        let compressedBuffer = new writer.BufferWriter(compress.compress(decompressedBuffer.buffer));
+        let compressedBuffer = compress.compress(decompressedBuffer.getBuffer());
         buffer.writeInt32LE(buffer.length + compressedBuffer.length + 8);
         buffer.writeInt32LE(decompressedBuffer.length);
-        buffer.concat(compressedBuffer.buffer);
+        buffer.concat(compressedBuffer);
 
     } else {
         buffer.writeInt32LE(buffer.length + decompressedBuffer.length + 4);
-        buffer.concat(decompressedBuffer.buffer);
+        buffer.concat(decompressedBuffer.getBuffer());
     }
 
-    return buffer.buffer;
+    return buffer.getBuffer();
 }
 
 module.exports = {
+    getXnbType,
     XnbToObject,
     ObjectToXnb
 };

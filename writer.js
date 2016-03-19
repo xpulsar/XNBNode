@@ -8,16 +8,34 @@ let assert = require('assert');
 class BufferWriter {
     constructor(buffer) {
         this.buffer = new Buffer(buffer || 0);
+        this.position = this.buffer.length;
+    }
+
+    reallocate(newSize) {
+        let newBuffer = new Buffer(newSize);
+        this.buffer.copy(newBuffer, 0, 0, this.position);
+        this.buffer = newBuffer;
+    }
+
+    assureSpace(requiredSpace) {
+        let currentLength = this.buffer.length;
+        if(this.position + requiredSpace > currentLength) {
+            this.reallocate(Math.max(currentLength * 2 + 1, currentLength + requiredSpace));
+        }
     }
 
     get length() {
-        return this.buffer.length;
+        return this.position;
     }
 
     concat(buffer) {
+        this.assureSpace(buffer.length);
+        buffer.copy(this.buffer, this.position);
         this.position += buffer.length;
-        this.buffer = Buffer.concat([this.buffer, buffer]);
-        this.buffer.type = ref.types.byte;
+    }
+
+    getBuffer() {
+        return this.buffer.slice(0, this.position);
     }
 
     writeAscii(text) {

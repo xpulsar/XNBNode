@@ -177,7 +177,7 @@ function processMap(data, tilesheetCallback) {
     }
 
     out.concat(buffer.buffer); // done with tilesets, everything else doesn't matter
-    return out.buffer;
+    return out.getBuffer();
 }
 
 function extractMap(object, path, outputFile) {
