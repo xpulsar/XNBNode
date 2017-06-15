@@ -199,7 +199,10 @@ class CharWriter {
 
 class StringWriter {
     write(buffer, text, writerResolver) {
-        let stringBuffer = new Buffer(text.length * 2);
+        // Multiply by 4 to guarantee no sequence of characters
+        // will be truncated, as javascript returns the utf-8 length,
+        // and each utf-8 character may occupy up to 4 bytes.
+        let stringBuffer = new Buffer(text.length * 4);
         let size = stringBuffer.write(text);
         buffer.write7BitEncodedNumber(size);
         buffer.concat(stringBuffer.slice(0, size));
