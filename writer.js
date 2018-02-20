@@ -180,6 +180,14 @@ class TBinWriter {
     }
 }
 
+class BmFontWriter {
+    write(buffer, tBinData, writerResolver) {
+        buffer.writeByte(1);
+        buffer.write7BitEncodedNumber(tBinData.data.length);
+        buffer.concat(tBinData.data);
+    }
+}
+
 class Vector3Writer {
     write(buffer, vector, writerResolver) {
         buffer.writeFloatLE(vector.x);
@@ -295,7 +303,11 @@ function getWriter(type) {
         case 'TBin':
             return new TBinWriter();
 
+        case 'BmFont':
+            return new BmFontWriter();
+
         default:
+            console.log('Non-implemented file writer for "' + type + '"');
             throw new util.ReadError('Non-implemented file writer for "' + type + '"');
     }
 }

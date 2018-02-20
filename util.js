@@ -88,7 +88,11 @@ function simplifyType(type) {
         case 'xTile.Pipeline.TideReader':
             return 'TBin';
 
+        case 'BmFont.XmlSourceReader':
+            return "BmFont";
+
         default:
+            console.log('Non-implemented type simplifying for "' + mainType + '"');
             throw new ReadError('Non-implemented type simplifying for "' + type + '"');
     }
 }

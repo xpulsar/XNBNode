@@ -223,6 +223,26 @@ class TBinReader extends Reader {
     }
 }
 
+class BmFontReader extends Reader {
+    _consume(buffer, readerResolver) {
+        let size    = buffer.consume7BitEncodedNumber();
+
+        let data = buffer.consume(size);
+
+        return {
+            data: data
+        };
+    }
+
+    isValueType() {
+        return true;
+    }
+
+    get type() {
+        return 'BmFont';
+    }
+}
+
 class Vector3Reader extends Reader {
     _consume(buffer, readerResolver) {
         return {
@@ -384,7 +404,11 @@ function getReader(type) {
         case 'TBin':
             return new TBinReader();
 
+        case 'BmFont':
+            return new BmFontReader();
+
         default:
+            console.log("Non-implemented file reader "+type);
             throw new util.ReadError('Non-implemented file reader for "' + type + '"');
     }
 }
