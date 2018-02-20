@@ -29,14 +29,17 @@ function objectWalk(object, path, cb) {
 function onPresave(outputFile, data) {
     let images = [];
     let maps = [];
+    let fnts = [];
 
     objectWalk(data.content, (object, path) => {
         if(object.type == 'Texture2D') images.push(extractImage(object, path, outputFile));
         else if(object.type == 'TBin') maps.push(extractMap(object, path, outputFile));
+        else if(object.type == 'BmFont') fnts.push(extractFnt(object, path, outputFile));
     });
 
     if(images.length) data.extractedImages = images;
     if(maps.length) data.extractedMaps = maps;
+    if(fnts.length) data.extractedFnts = fnts;
 
     return data;
 }
@@ -54,8 +57,14 @@ function onPostload(inputFile, data) {
         loadMap(maps[i], inputFile, data);
     }
 
+    let fnts = data.extractedFnts || [];
+    for(let i = 0; i < fnts.length; i++) {
+        loadFnt(fnts[i], inputFile, data);
+    }
+
     delete data.extractedImages;
     delete data.extractedMaps;
+    delete data.extractedFnts;
 
     return data;
 }
@@ -210,4 +219,25 @@ function loadMap(map, inputFile, data) {
 
     let container = traversePath(data.content, map.path);
     container.data = mapBuffer;
+}
+
+function extractFnt(object, path, outputFile) {
+
+    let filename = getPathBasename(outputFile, path) + '.fnt';
+    fs.writeFileSync(filename, object.data.data);
+
+    delete object.data.data;
+
+    return {
+        path: path
+    }
+}
+
+function loadFnt(image, inputFile, data) {
+    let filename = getPathBasename(inputFile, image.path) + '.fnt';
+    let fntBuffer = fs.readFileSync(filename);
+
+    let container = traversePath(data.content, image.path);
+
+    container.data = fntBuffer;
 }
